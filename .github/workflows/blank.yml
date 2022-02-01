@@ -40,13 +40,6 @@ jobs:
           push: false
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/simpletoken:latest
 
-      -
-        name: Run me
-        uses: docker/docker-run-action@v3
-          with:
-            image: ${{ secrets.DOCKER_HUB_USERNAME }}/simpletoken:latest
-            run: echo Scroll up and see what ran! 
-
       - 
         name: All works
         run: echo Everything went smooth!
