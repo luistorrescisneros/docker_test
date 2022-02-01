@@ -44,7 +44,7 @@ jobs:
         name: Run me
         uses: docker/docker-run-action@v3
           with:
-            image: test:latest
+            image: ${{ secrets.DOCKER_HUB_USERNAME }}/simpletoken:latest
             run: echo Scroll up and see what ran! 
 
       - 
