@@ -32,13 +32,27 @@ RUN choco install -y python && \
 # for building the documentation
 RUN pip install beautifulsoup4 lxml
 
+# Installing msys2 for mingw64
+# Source https://www.msys2.org/docs/ci/
+RUN powershell -Command $ErrorActionPreference='Stop'; $ProgressPreference ='SilentlyContinue'; \
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
+    Invoke-WebRequest -UseBasicParsing -uri "https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe" -OutFile msys2.exe; \
+    .\msys2.exe -y -oC:\; \
+    Remove-Item msys2.exe ; \
+    function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args; } \
+    msys ' '; \
+    msys 'pacman --noconfirm -Syuu'; \
+    msys 'pacman --noconfirm -Syuu'; \
+    msys 'pacman --noconfirm -Scc'; \
+    msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-toolchain' 
+
+
 ########### Install Qt #############
 ARG QT_VERSION=5.15.1
 COPY scripts/install-qt.sh install-qt.sh
 
 RUN bash -c "./install-qt.sh -d /c/Qt --version ${QT_VERSION} --toolchain win64_mingw81 qtbase qtdeclarative qttools qtscript" 
 ENV QTDIR64=C:\\Qt\\${QT_VERSION}\\mingw81_64
-#win64_msvc2019_64
 
 #RUN bash -c "./install-qt.sh -d /c/Qt --version ${QT_VERSION} --toolchain win32_mingw81 qtbase qtdeclarative qttools qtscript"
 #ENV QTDIR=C:\\Qt\\${QT_VERSION}\\msvc2019
@@ -56,21 +70,13 @@ RUN qbs setup-toolchains --detect && \
 # https://docs.conan.io/en/latest/installation.html
 RUN pip install conan
 
-# Installing msys2 for mingw64
-# Source https://www.msys2.org/docs/ci/
-# SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+# Defining a PATH is taken from https://github.com/dotnet/dotnet-docker/blob/20ea9f045a8eacef3fc33d41d58151d793f0cf36/2.1/sdk/nanoserver-1909/amd64/Dockerfile#L28-L29
+# Including qmake64 and mingw64 into PATH
+SHELL ["cmd", "/S", "/C"]
+USER ContainerAdministrator
+RUN setx /M PATH "%PATH%;%QTDIR64%\bin"
+RUN setx /M PATH "%PATH%;C:\msys64\mingw64\bin"
+#USER ContainerUser
 
-RUN powershell -Command $ErrorActionPreference='Stop'; $ProgressPreference ='SilentlyContinue'; \
-  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; \
-  Invoke-WebRequest -UseBasicParsing -uri "https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe" -OutFile msys2.exe; \
-  .\msys2.exe -y -oC:\; \
-  Remove-Item msys2.exe ; \
-  function msys() { C:\msys64\usr\bin\bash.exe @('-lc') + @Args; } \
-  msys ' '; \
-  msys 'pacman --noconfirm -Syuu'; \
-  msys 'pacman --noconfirm -Syuu'; \
-  msys 'pacman --noconfirm -Scc'; \
-  msys 'pacman --noconfirm -S --needed base-devel mingw-w64-x86_64-toolchain'
+#ENTRYPOINT ["powershell.exe", "-NoLogo", "-ExecutionPolicy", "Bypass"]
 
-#SHELL ["cmd", "/S", "/C"]
-#ENTRYPOINT ["C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\Common7\\Tools\\VsDevCmd.bat", "&&", "powershell.exe", "-NoLogo", "-ExecutionPolicy", "Bypass"]
